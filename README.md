@@ -8,4 +8,5 @@ Uses the second microcontroller on an Arduino UNO to emulate a USB keyboard.
 2. Flash main.elf to the Arduino UNO using an ISP programmer (you can no longer use USB to program)
 3. Plug the Arduino in using USB, after a few seconds, it should type "Hello World!"
 
-To reset the second microcontroller, flash optiboot_atmega328.hex
+To reset the second microcontroller, so that it can be used like a regular Arduino again,
+flash optiboot_atmega328.hex
