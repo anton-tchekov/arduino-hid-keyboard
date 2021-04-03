@@ -1,0 +1,1007 @@
+   1               		.file	"main.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__tmp_reg__ = 0
+   6               	__zero_reg__ = 1
+   7               		.text
+   8               	.Ltext0:
+   9               		.cfi_sections	.debug_frame
+  11               	uart_tx_buf.constprop.0:
+  12               	.LFB16:
+  13               		.file 1 "usb.c"
+   1:usb.c         **** /* USB Driver */
+   2:usb.c         **** #include <stdint.h>
+   3:usb.c         **** #include <avr/io.h>
+   4:usb.c         **** #include <avr/pgmspace.h>
+   5:usb.c         **** #include <util/delay.h>
+   6:usb.c         **** 
+   7:usb.c         **** /* modifier */
+   8:usb.c         **** #define MOD_L_CTRL     0x01
+   9:usb.c         **** #define MOD_L_SHIFT    0x02
+  10:usb.c         **** #define MOD_L_ALT      0x04
+  11:usb.c         **** #define MOD_L_META     0x08
+  12:usb.c         **** 
+  13:usb.c         **** #define MOD_R_CTRL     0x10
+  14:usb.c         **** #define MOD_R_SHIFT    0x20
+  15:usb.c         **** #define MOD_R_ALT      0x40
+  16:usb.c         **** #define MOD_R_META     0x80
+  17:usb.c         **** 
+  18:usb.c         **** /* key */
+  19:usb.c         **** #define KEY_A          0x04
+  20:usb.c         **** #define KEY_B          0x05
+  21:usb.c         **** #define KEY_C          0x06
+  22:usb.c         **** #define KEY_D          0x07
+  23:usb.c         **** #define KEY_E          0x08
+  24:usb.c         **** #define KEY_F          0x09
+  25:usb.c         **** #define KEY_G          0x0a
+  26:usb.c         **** #define KEY_H          0x0b
+  27:usb.c         **** #define KEY_I          0x0c
+  28:usb.c         **** #define KEY_J          0x0d
+  29:usb.c         **** #define KEY_K          0x0e
+  30:usb.c         **** #define KEY_L          0x0f
+  31:usb.c         **** #define KEY_M          0x10
+  32:usb.c         **** #define KEY_N          0x11
+  33:usb.c         **** #define KEY_O          0x12
+  34:usb.c         **** #define KEY_P          0x13
+  35:usb.c         **** #define KEY_Q          0x14
+  36:usb.c         **** #define KEY_R          0x15
+  37:usb.c         **** #define KEY_S          0x16
+  38:usb.c         **** #define KEY_T          0x17
+  39:usb.c         **** #define KEY_U          0x18
+  40:usb.c         **** #define KEY_V          0x19
+  41:usb.c         **** #define KEY_W          0x1a
+  42:usb.c         **** #define KEY_X          0x1b
+  43:usb.c         **** #define KEY_Y          0x1c
+  44:usb.c         **** #define KEY_Z          0x1d
+  45:usb.c         **** 
+  46:usb.c         **** #define KEY_1          0x1e
+  47:usb.c         **** #define KEY_2          0x1f
+  48:usb.c         **** #define KEY_3          0x20
+  49:usb.c         **** #define KEY_4          0x21
+  50:usb.c         **** #define KEY_5          0x22
+  51:usb.c         **** #define KEY_6          0x23
+  52:usb.c         **** #define KEY_7          0x24
+  53:usb.c         **** #define KEY_8          0x25
+  54:usb.c         **** #define KEY_9          0x26
+  55:usb.c         **** #define KEY_0          0x27
+  56:usb.c         **** 
+  57:usb.c         **** #define KEY_ENTER      0x28
+  58:usb.c         **** #define KEY_ESC        0x29
+  59:usb.c         **** #define KEY_BACKSPACE  0x2a
+  60:usb.c         **** #define KEY_TAB        0x2b
+  61:usb.c         **** #define KEY_SPACE      0x2c
+  62:usb.c         **** #define KEY_MINUS      0x2d
+  63:usb.c         **** #define KEY_EQUAL      0x2e
+  64:usb.c         **** #define KEY_LEFTBRACE  0x2f
+  65:usb.c         **** #define KEY_RIGHTBRACE 0x30
+  66:usb.c         **** #define KEY_BACKSLASH  0x31
+  67:usb.c         **** #define KEY_HASHTILDE  0x32
+  68:usb.c         **** #define KEY_SEMICOLON  0x33
+  69:usb.c         **** #define KEY_APOSTROPHE 0x34
+  70:usb.c         **** #define KEY_GRAVE      0x35
+  71:usb.c         **** #define KEY_COMMA      0x36
+  72:usb.c         **** #define KEY_DOT        0x37
+  73:usb.c         **** #define KEY_SLASH      0x38
+  74:usb.c         **** #define KEY_CAPSLOCK   0x39
+  75:usb.c         **** 
+  76:usb.c         **** #define KEY_F1         0x3a
+  77:usb.c         **** #define KEY_F2         0x3b
+  78:usb.c         **** #define KEY_F3         0x3c
+  79:usb.c         **** #define KEY_F4         0x3d
+  80:usb.c         **** #define KEY_F5         0x3e
+  81:usb.c         **** #define KEY_F6         0x3f
+  82:usb.c         **** #define KEY_F7         0x40
+  83:usb.c         **** #define KEY_F8         0x41
+  84:usb.c         **** #define KEY_F9         0x42
+  85:usb.c         **** #define KEY_F10        0x43
+  86:usb.c         **** #define KEY_F11        0x44
+  87:usb.c         **** #define KEY_F12        0x45
+  88:usb.c         **** 
+  89:usb.c         **** #define KEY_INSERT     0x49
+  90:usb.c         **** #define KEY_HOME       0x4a
+  91:usb.c         **** #define KEY_PAGEUP     0x4b
+  92:usb.c         **** #define KEY_DELETE     0x4c
+  93:usb.c         **** #define KEY_END        0x4d
+  94:usb.c         **** #define KEY_PAGEDOWN   0x4e
+  95:usb.c         **** 
+  96:usb.c         **** #define KEY_RIGHT      0x4f
+  97:usb.c         **** #define KEY_LEFT       0x50
+  98:usb.c         **** #define KEY_DOWN       0x51
+  99:usb.c         **** #define KEY_UP         0x52
+ 100:usb.c         **** 
+ 101:usb.c         **** #define KEY_L_CTRL     0xe0
+ 102:usb.c         **** #define KEY_L_SHIFT    0xe1
+ 103:usb.c         **** #define KEY_L_ALT      0xe2
+ 104:usb.c         **** #define KEY_L_META     0xe3
+ 105:usb.c         **** 
+ 106:usb.c         **** #define KEY_R_CTRL     0xe4
+ 107:usb.c         **** #define KEY_R_SHIFT    0xe5
+ 108:usb.c         **** #define KEY_R_ALT      0xe6
+ 109:usb.c         **** #define KEY_R_META     0xe7
+ 110:usb.c         **** 
+ 111:usb.c         **** static const uint8_t layout_en[] PROGMEM =
+ 112:usb.c         **** {
+ 113:usb.c         **** 	/* ' ',  */ 0,           KEY_SPACE,
+ 114:usb.c         **** 	/* '!',  */ MOD_L_SHIFT, KEY_1,
+ 115:usb.c         **** 	/* '\"', */ MOD_L_SHIFT, KEY_APOSTROPHE,
+ 116:usb.c         **** 	/* '#',  */ MOD_L_SHIFT, KEY_3,
+ 117:usb.c         **** 	/* '$',  */ MOD_L_SHIFT, KEY_4,
+ 118:usb.c         **** 	/* '%',  */ MOD_L_SHIFT, KEY_5,
+ 119:usb.c         **** 	/* '&',  */ MOD_L_SHIFT, KEY_7,
+ 120:usb.c         **** 	/* '\'', */ 0,           KEY_APOSTROPHE,
+ 121:usb.c         **** 	/* '(',  */ MOD_L_SHIFT, KEY_9,
+ 122:usb.c         **** 	/* ')',  */ MOD_L_SHIFT, KEY_0,
+ 123:usb.c         **** 	/* '*',  */ MOD_L_SHIFT, KEY_8,
+ 124:usb.c         **** 	/* '+',  */ MOD_L_SHIFT, KEY_EQUAL,
+ 125:usb.c         **** 	/* ',',  */ 0,           KEY_COMMA,
+ 126:usb.c         **** 	/* '-',  */ 0,           KEY_MINUS,
+ 127:usb.c         **** 	/* '.',  */ 0,           KEY_DOT,
+ 128:usb.c         **** 	/* '/',  */ 0,           KEY_SLASH,
+ 129:usb.c         **** 	/* '0',  */ 0,           KEY_0,
+ 130:usb.c         **** 	/* '1',  */ 0,           KEY_1,
+ 131:usb.c         **** 	/* '2',  */ 0,           KEY_2,
+ 132:usb.c         **** 	/* '3',  */ 0,           KEY_3,
+ 133:usb.c         **** 	/* '4',  */ 0,           KEY_4,
+ 134:usb.c         **** 	/* '5',  */ 0,           KEY_5,
+ 135:usb.c         **** 	/* '6',  */ 0,           KEY_6,
+ 136:usb.c         **** 	/* '7',  */ 0,           KEY_7,
+ 137:usb.c         **** 	/* '8',  */ 0,           KEY_8,
+ 138:usb.c         **** 	/* '9',  */ 0,           KEY_9,
+ 139:usb.c         **** 	/* ':',  */ MOD_L_SHIFT, KEY_SEMICOLON,
+ 140:usb.c         **** 	/* ';',  */ 0,           KEY_SEMICOLON,
+ 141:usb.c         **** 	/* '<',  */ MOD_L_SHIFT, KEY_COMMA,
+ 142:usb.c         **** 	/* '=',  */ 0,           KEY_EQUAL,
+ 143:usb.c         **** 	/* '>',  */ MOD_L_SHIFT, KEY_DOT,
+ 144:usb.c         **** 	/* '?',  */ MOD_L_SHIFT, KEY_SLASH,
+ 145:usb.c         **** 	/* '@',  */ MOD_L_SHIFT, KEY_2,
+ 146:usb.c         **** 	/* 'A',  */ MOD_L_SHIFT, KEY_A,
+ 147:usb.c         **** 	/* 'B',  */ MOD_L_SHIFT, KEY_B,
+ 148:usb.c         **** 	/* 'C',  */ MOD_L_SHIFT, KEY_C,
+ 149:usb.c         **** 	/* 'D',  */ MOD_L_SHIFT, KEY_D,
+ 150:usb.c         **** 	/* 'E',  */ MOD_L_SHIFT, KEY_E,
+ 151:usb.c         **** 	/* 'F',  */ MOD_L_SHIFT, KEY_F,
+ 152:usb.c         **** 	/* 'G',  */ MOD_L_SHIFT, KEY_G,
+ 153:usb.c         **** 	/* 'H',  */ MOD_L_SHIFT, KEY_H,
+ 154:usb.c         **** 	/* 'I',  */ MOD_L_SHIFT, KEY_I,
+ 155:usb.c         **** 	/* 'J',  */ MOD_L_SHIFT, KEY_J,
+ 156:usb.c         **** 	/* 'K',  */ MOD_L_SHIFT, KEY_K,
+ 157:usb.c         **** 	/* 'L',  */ MOD_L_SHIFT, KEY_L,
+ 158:usb.c         **** 	/* 'M',  */ MOD_L_SHIFT, KEY_M,
+ 159:usb.c         **** 	/* 'N',  */ MOD_L_SHIFT, KEY_N,
+ 160:usb.c         **** 	/* 'O',  */ MOD_L_SHIFT, KEY_O,
+ 161:usb.c         **** 	/* 'P',  */ MOD_L_SHIFT, KEY_P,
+ 162:usb.c         **** 	/* 'Q',  */ MOD_L_SHIFT, KEY_Q,
+ 163:usb.c         **** 	/* 'R',  */ MOD_L_SHIFT, KEY_R,
+ 164:usb.c         **** 	/* 'S',  */ MOD_L_SHIFT, KEY_S,
+ 165:usb.c         **** 	/* 'T',  */ MOD_L_SHIFT, KEY_T,
+ 166:usb.c         **** 	/* 'U',  */ MOD_L_SHIFT, KEY_U,
+ 167:usb.c         **** 	/* 'V',  */ MOD_L_SHIFT, KEY_V,
+ 168:usb.c         **** 	/* 'W',  */ MOD_L_SHIFT, KEY_W,
+ 169:usb.c         **** 	/* 'X',  */ MOD_L_SHIFT, KEY_X,
+ 170:usb.c         **** 	/* 'Y',  */ MOD_L_SHIFT, KEY_Y,
+ 171:usb.c         **** 	/* 'Z',  */ MOD_L_SHIFT, KEY_Z,
+ 172:usb.c         **** 	/* '[',  */ MOD_L_SHIFT, KEY_LEFTBRACE,
+ 173:usb.c         **** 	/* '\\', */ 0,           KEY_BACKSLASH,
+ 174:usb.c         **** 	/* ']',  */ MOD_L_SHIFT, KEY_RIGHTBRACE,
+ 175:usb.c         **** 	/* '^',  */ MOD_L_SHIFT, KEY_6,
+ 176:usb.c         **** 	/* '_',  */ MOD_L_SHIFT, KEY_MINUS,
+ 177:usb.c         **** 	/* '`',  */ 0,           KEY_GRAVE,
+ 178:usb.c         **** 	/* 'a',  */ 0,           KEY_A,
+ 179:usb.c         **** 	/* 'b',  */ 0,           KEY_B,
+ 180:usb.c         **** 	/* 'c',  */ 0,           KEY_C,
+ 181:usb.c         **** 	/* 'd',  */ 0,           KEY_D,
+ 182:usb.c         **** 	/* 'e',  */ 0,           KEY_E,
+ 183:usb.c         **** 	/* 'f',  */ 0,           KEY_F,
+ 184:usb.c         **** 	/* 'g',  */ 0,           KEY_G,
+ 185:usb.c         **** 	/* 'h',  */ 0,           KEY_H,
+ 186:usb.c         **** 	/* 'i',  */ 0,           KEY_I,
+ 187:usb.c         **** 	/* 'j',  */ 0,           KEY_J,
+ 188:usb.c         **** 	/* 'k',  */ 0,           KEY_K,
+ 189:usb.c         **** 	/* 'l',  */ 0,           KEY_L,
+ 190:usb.c         **** 	/* 'm',  */ 0,           KEY_M,
+ 191:usb.c         **** 	/* 'n',  */ 0,           KEY_N,
+ 192:usb.c         **** 	/* 'o',  */ 0,           KEY_O,
+ 193:usb.c         **** 	/* 'p',  */ 0,           KEY_P,
+ 194:usb.c         **** 	/* 'q',  */ 0,           KEY_Q,
+ 195:usb.c         **** 	/* 'r',  */ 0,           KEY_R,
+ 196:usb.c         **** 	/* 's',  */ 0,           KEY_S,
+ 197:usb.c         **** 	/* 't',  */ 0,           KEY_T,
+ 198:usb.c         **** 	/* 'u',  */ 0,           KEY_U,
+ 199:usb.c         **** 	/* 'v',  */ 0,           KEY_V,
+ 200:usb.c         **** 	/* 'w',  */ 0,           KEY_W,
+ 201:usb.c         **** 	/* 'x',  */ 0,           KEY_X,
+ 202:usb.c         **** 	/* 'y',  */ 0,           KEY_Y,
+ 203:usb.c         **** 	/* 'z',  */ 0,           KEY_Z,
+ 204:usb.c         **** 	/* '{',  */ 0,           KEY_LEFTBRACE,
+ 205:usb.c         **** 	/* '|',  */ MOD_L_SHIFT, KEY_BACKSLASH,
+ 206:usb.c         **** 	/* '~',  */ MOD_L_SHIFT, KEY_GRAVE,
+ 207:usb.c         **** 	/* '}',  */ 0,           KEY_RIGHTBRACE
+ 208:usb.c         **** };
+ 209:usb.c         **** 
+ 210:usb.c         **** static const uint8_t layout_de[] PROGMEM =
+ 211:usb.c         **** {
+ 212:usb.c         **** 	/* ' ',  */ 0,           KEY_SPACE,
+ 213:usb.c         **** 	/* '!',  */ MOD_L_SHIFT, KEY_1,
+ 214:usb.c         **** 	/* '\"', */ MOD_L_SHIFT, KEY_2,
+ 215:usb.c         **** 	/* '#',  */ 0,           KEY_BACKSLASH,
+ 216:usb.c         **** 	/* '$',  */ MOD_L_SHIFT, KEY_4,
+ 217:usb.c         **** 	/* '%',  */ MOD_L_SHIFT, KEY_5,
+ 218:usb.c         **** 	/* '&',  */ MOD_L_SHIFT, KEY_6,
+ 219:usb.c         **** 	/* '\'', */ MOD_L_SHIFT, KEY_BACKSLASH,
+ 220:usb.c         **** 	/* '(',  */ MOD_L_SHIFT, KEY_8,
+ 221:usb.c         **** 	/* ')',  */ MOD_L_SHIFT, KEY_9,
+ 222:usb.c         **** 	/* '*',  */ MOD_L_SHIFT, KEY_RIGHTBRACE,
+ 223:usb.c         **** 	/* '+',  */ 0,           KEY_RIGHTBRACE,
+ 224:usb.c         **** 	/* ',',  */ 0,           KEY_COMMA,
+ 225:usb.c         **** 	/* '-',  */ 0,           KEY_SLASH,
+ 226:usb.c         **** 	/* '.',  */ 0,           KEY_DOT,
+ 227:usb.c         **** 	/* '/',  */ MOD_L_SHIFT, KEY_7,
+ 228:usb.c         **** 	/* '0',  */ 0,           KEY_0,
+ 229:usb.c         **** 	/* '1',  */ 0,           KEY_1,
+ 230:usb.c         **** 	/* '2',  */ 0,           KEY_2,
+ 231:usb.c         **** 	/* '3',  */ 0,           KEY_3,
+ 232:usb.c         **** 	/* '4',  */ 0,           KEY_4,
+ 233:usb.c         **** 	/* '5',  */ 0,           KEY_5,
+ 234:usb.c         **** 	/* '6',  */ 0,           KEY_6,
+ 235:usb.c         **** 	/* '7',  */ 0,           KEY_7,
+ 236:usb.c         **** 	/* '8',  */ 0,           KEY_8,
+ 237:usb.c         **** 	/* '9',  */ 0,           KEY_9,
+ 238:usb.c         **** 	/* ':',  */ MOD_L_SHIFT, KEY_DOT,
+ 239:usb.c         **** 	/* ';',  */ MOD_L_SHIFT, KEY_COMMA,
+ 240:usb.c         **** 	/* '<',  */ MOD_L_SHIFT, KEY_COMMA,
+ 241:usb.c         **** 	/* '=',  */ 0,           KEY_EQUAL,
+ 242:usb.c         **** 	/* '>',  */ MOD_L_SHIFT, KEY_DOT,
+ 243:usb.c         **** 	/* '?',  */ MOD_L_SHIFT, KEY_SLASH,
+ 244:usb.c         **** 	/* '@',  */ MOD_R_ALT,   KEY_Q,
+ 245:usb.c         **** 	/* 'A',  */ MOD_L_SHIFT, KEY_A,
+ 246:usb.c         **** 	/* 'B',  */ MOD_L_SHIFT, KEY_B,
+ 247:usb.c         **** 	/* 'C',  */ MOD_L_SHIFT, KEY_C,
+ 248:usb.c         **** 	/* 'D',  */ MOD_L_SHIFT, KEY_D,
+ 249:usb.c         **** 	/* 'E',  */ MOD_L_SHIFT, KEY_E,
+ 250:usb.c         **** 	/* 'F',  */ MOD_L_SHIFT, KEY_F,
+ 251:usb.c         **** 	/* 'G',  */ MOD_L_SHIFT, KEY_G,
+ 252:usb.c         **** 	/* 'H',  */ MOD_L_SHIFT, KEY_H,
+ 253:usb.c         **** 	/* 'I',  */ MOD_L_SHIFT, KEY_I,
+ 254:usb.c         **** 	/* 'J',  */ MOD_L_SHIFT, KEY_J,
+ 255:usb.c         **** 	/* 'K',  */ MOD_L_SHIFT, KEY_K,
+ 256:usb.c         **** 	/* 'L',  */ MOD_L_SHIFT, KEY_L,
+ 257:usb.c         **** 	/* 'M',  */ MOD_L_SHIFT, KEY_M,
+ 258:usb.c         **** 	/* 'N',  */ MOD_L_SHIFT, KEY_N,
+ 259:usb.c         **** 	/* 'O',  */ MOD_L_SHIFT, KEY_O,
+ 260:usb.c         **** 	/* 'P',  */ MOD_L_SHIFT, KEY_P,
+ 261:usb.c         **** 	/* 'Q',  */ MOD_L_SHIFT, KEY_Q,
+ 262:usb.c         **** 	/* 'R',  */ MOD_L_SHIFT, KEY_R,
+ 263:usb.c         **** 	/* 'S',  */ MOD_L_SHIFT, KEY_S,
+ 264:usb.c         **** 	/* 'T',  */ MOD_L_SHIFT, KEY_T,
+ 265:usb.c         **** 	/* 'U',  */ MOD_L_SHIFT, KEY_U,
+ 266:usb.c         **** 	/* 'V',  */ MOD_L_SHIFT, KEY_V,
+ 267:usb.c         **** 	/* 'W',  */ MOD_L_SHIFT, KEY_W,
+ 268:usb.c         **** 	/* 'X',  */ MOD_L_SHIFT, KEY_X,
+ 269:usb.c         **** 	/* 'Y',  */ MOD_L_SHIFT, KEY_Z,
+ 270:usb.c         **** 	/* 'Z',  */ MOD_L_SHIFT, KEY_Y,
+ 271:usb.c         **** 	/* '[',  */ MOD_R_ALT,   KEY_8,
+ 272:usb.c         **** 	/* '\\', */ 0,           KEY_BACKSLASH,
+ 273:usb.c         **** 	/* ']',  */ MOD_R_ALT,   KEY_9,
+ 274:usb.c         **** 	/* '^',  */ MOD_L_SHIFT, KEY_6,
+ 275:usb.c         **** 	/* '_',  */ MOD_L_SHIFT, KEY_MINUS,
+ 276:usb.c         **** 	/* '`',  */ 0,           KEY_GRAVE,
+ 277:usb.c         **** 	/* 'a',  */ 0,           KEY_A,
+ 278:usb.c         **** 	/* 'b',  */ 0,           KEY_B,
+ 279:usb.c         **** 	/* 'c',  */ 0,           KEY_C,
+ 280:usb.c         **** 	/* 'd',  */ 0,           KEY_D,
+ 281:usb.c         **** 	/* 'e',  */ 0,           KEY_E,
+ 282:usb.c         **** 	/* 'f',  */ 0,           KEY_F,
+ 283:usb.c         **** 	/* 'g',  */ 0,           KEY_G,
+ 284:usb.c         **** 	/* 'h',  */ 0,           KEY_H,
+ 285:usb.c         **** 	/* 'i',  */ 0,           KEY_I,
+ 286:usb.c         **** 	/* 'j',  */ 0,           KEY_J,
+ 287:usb.c         **** 	/* 'k',  */ 0,           KEY_K,
+ 288:usb.c         **** 	/* 'l',  */ 0,           KEY_L,
+ 289:usb.c         **** 	/* 'm',  */ 0,           KEY_M,
+ 290:usb.c         **** 	/* 'n',  */ 0,           KEY_N,
+ 291:usb.c         **** 	/* 'o',  */ 0,           KEY_O,
+ 292:usb.c         **** 	/* 'p',  */ 0,           KEY_P,
+ 293:usb.c         **** 	/* 'q',  */ 0,           KEY_Q,
+ 294:usb.c         **** 	/* 'r',  */ 0,           KEY_R,
+ 295:usb.c         **** 	/* 's',  */ 0,           KEY_S,
+ 296:usb.c         **** 	/* 't',  */ 0,           KEY_T,
+ 297:usb.c         **** 	/* 'u',  */ 0,           KEY_U,
+ 298:usb.c         **** 	/* 'v',  */ 0,           KEY_V,
+ 299:usb.c         **** 	/* 'w',  */ 0,           KEY_W,
+ 300:usb.c         **** 	/* 'x',  */ 0,           KEY_X,
+ 301:usb.c         **** 	/* 'y',  */ 0,           KEY_Z,
+ 302:usb.c         **** 	/* 'z',  */ 0,           KEY_Y,
+ 303:usb.c         **** 	/* '{',  */ MOD_R_ALT,   KEY_7,
+ 304:usb.c         **** 	/* '|',  */ MOD_L_SHIFT, KEY_BACKSLASH,
+ 305:usb.c         **** 	/* '}',  */ MOD_R_ALT,   KEY_0,
+ 306:usb.c         **** 	/* '~',  */ MOD_L_SHIFT, KEY_GRAVE
+ 307:usb.c         **** };
+ 308:usb.c         **** 
+ 309:usb.c         **** #define UART_BAUD  9600
+ 310:usb.c         **** #define _BAUD          (((F_CPU / (UART_BAUD * 16UL))) - 1)
+ 311:usb.c         **** 
+ 312:usb.c         **** static void uart_init(void)
+ 313:usb.c         **** {
+ 314:usb.c         **** 	UCSR0B = (1 << RXEN0) | (1 << TXEN0);
+ 315:usb.c         **** 	UCSR0C = (1 << UCSZ01) | (1 << UCSZ00);
+ 316:usb.c         **** 	UBRR0L = (uint8_t)(_BAUD & 0xFF);
+ 317:usb.c         **** 	UBRR0H = (uint8_t)((_BAUD >> 8) & 0xFF);
+ 318:usb.c         **** }
+ 319:usb.c         **** 
+ 320:usb.c         **** static void uart_tx(uint8_t c)
+ 321:usb.c         **** {
+ 322:usb.c         **** 	while(!(UCSR0A & (1 << UDRE0))) ;
+ 323:usb.c         **** 	UDR0 = c;
+ 324:usb.c         **** }
+ 325:usb.c         **** 
+ 326:usb.c         **** static void uart_tx_buf(uint8_t *a, uint8_t len)
+  14               		.loc 1 326 13 view -0
+  15               		.cfi_startproc
+  16               	/* prologue: function */
+  17               	/* frame size = 0 */
+  18               	/* stack size = 0 */
+  19               	.L__stack_usage = 0
+  20               	.LVL0:
+ 327:usb.c         **** {
+ 328:usb.c         **** 	while(len--)
+  21               		.loc 1 328 7 view .LVU1
+ 326:usb.c         **** {
+  22               		.loc 1 326 13 is_stmt 0 view .LVU2
+  23 0000 80E0      		ldi r24,lo8(buf.0)
+  24 0002 90E0      		ldi r25,hi8(buf.0)
+  25               	.LVL1:
+  26               	.L3:
+ 329:usb.c         **** 	{
+ 330:usb.c         **** 		uart_tx(*a++);
+  27               		.loc 1 330 3 is_stmt 1 view .LVU3
+  28 0004 FC01      		movw r30,r24
+  29               		.loc 1 330 3 is_stmt 0 view .LVU4
+  30 0006 2081      		ld r18,Z
+  31 0008 0196      		adiw r24,1
+  32               	.LVL2:
+  33               	.LBB7:
+  34               	.LBI7:
+ 320:usb.c         **** {
+  35               		.loc 1 320 13 is_stmt 1 view .LVU5
+  36               	.LBB8:
+ 322:usb.c         **** 	UDR0 = c;
+  37               		.loc 1 322 2 view .LVU6
+  38               	.L2:
+ 322:usb.c         **** 	UDR0 = c;
+  39               		.loc 1 322 34 view .LVU7
+ 322:usb.c         **** 	UDR0 = c;
+  40               		.loc 1 322 7 view .LVU8
+ 322:usb.c         **** 	UDR0 = c;
+  41               		.loc 1 322 10 is_stmt 0 view .LVU9
+  42 000a 3091 C000 		lds r19,192
+ 322:usb.c         **** 	UDR0 = c;
+  43               		.loc 1 322 7 view .LVU10
+  44 000e 35FF      		sbrs r19,5
+  45 0010 00C0      		rjmp .L2
+ 323:usb.c         **** }
+  46               		.loc 1 323 2 is_stmt 1 view .LVU11
+ 323:usb.c         **** }
+  47               		.loc 1 323 7 is_stmt 0 view .LVU12
+  48 0012 2093 C600 		sts 198,r18
+  49               	.LVL3:
+ 323:usb.c         **** }
+  50               		.loc 1 323 7 view .LVU13
+  51               	.LBE8:
+  52               	.LBE7:
+ 328:usb.c         **** 	{
+  53               		.loc 1 328 7 is_stmt 1 view .LVU14
+ 328:usb.c         **** 	{
+  54               		.loc 1 328 7 is_stmt 0 view .LVU15
+  55 0016 20E0      		ldi r18,hi8(buf.0+8)
+  56 0018 8030      		cpi r24,lo8(buf.0+8)
+  57 001a 9207      		cpc r25,r18
+  58 001c 01F4      		brne .L3
+  59               	/* epilogue start */
+ 331:usb.c         **** 	}
+ 332:usb.c         **** }
+  60               		.loc 1 332 1 view .LVU16
+  61 001e 0895      		ret
+  62               		.cfi_endproc
+  63               	.LFE16:
+  65               		.section	.text.startup,"ax",@progbits
+  66               	.global	main
+  68               	main:
+  69               	.LFB15:
+  70               		.file 2 "main.c"
+   1:main.c        **** #include <stdio.h>
+   2:main.c        **** #include "usb.c"
+   3:main.c        **** 
+   4:main.c        **** int main(void)
+   5:main.c        **** {
+  71               		.loc 2 5 1 is_stmt 1 view -0
+  72               		.cfi_startproc
+  73               	/* prologue: function */
+  74               	/* frame size = 0 */
+  75               	/* stack size = 0 */
+  76               	.L__stack_usage = 0
+   6:main.c        **** 	static const char hw[] PROGMEM = "Hello World!\n";
+  77               		.loc 2 6 2 view .LVU18
+   7:main.c        **** 	usb_init();
+  78               		.loc 2 7 2 view .LVU19
+  79               	.LBB22:
+  80               	.LBI22:
+ 333:usb.c         **** 
+ 334:usb.c         **** static void usb_init(void)
+  81               		.loc 1 334 13 view .LVU20
+  82               	.LBB23:
+ 335:usb.c         **** {
+ 336:usb.c         **** 	uart_init();
+  83               		.loc 1 336 2 view .LVU21
+  84               	.LBB24:
+  85               	.LBI24:
+ 312:usb.c         **** {
+  86               		.loc 1 312 13 view .LVU22
+  87               	.LBB25:
+ 314:usb.c         **** 	UCSR0C = (1 << UCSZ01) | (1 << UCSZ00);
+  88               		.loc 1 314 2 view .LVU23
+ 314:usb.c         **** 	UCSR0C = (1 << UCSZ01) | (1 << UCSZ00);
+  89               		.loc 1 314 9 is_stmt 0 view .LVU24
+  90 0000 88E1      		ldi r24,lo8(24)
+  91 0002 8093 C100 		sts 193,r24
+ 315:usb.c         **** 	UBRR0L = (uint8_t)(_BAUD & 0xFF);
+  92               		.loc 1 315 2 is_stmt 1 view .LVU25
+ 315:usb.c         **** 	UBRR0L = (uint8_t)(_BAUD & 0xFF);
+  93               		.loc 1 315 9 is_stmt 0 view .LVU26
+  94 0006 86E0      		ldi r24,lo8(6)
+  95 0008 8093 C200 		sts 194,r24
+ 316:usb.c         **** 	UBRR0H = (uint8_t)((_BAUD >> 8) & 0xFF);
+  96               		.loc 1 316 2 is_stmt 1 view .LVU27
+ 316:usb.c         **** 	UBRR0H = (uint8_t)((_BAUD >> 8) & 0xFF);
+  97               		.loc 1 316 9 is_stmt 0 view .LVU28
+  98 000c 87E6      		ldi r24,lo8(103)
+  99 000e 8093 C400 		sts 196,r24
+ 317:usb.c         **** }
+ 100               		.loc 1 317 2 is_stmt 1 view .LVU29
+ 317:usb.c         **** }
+ 101               		.loc 1 317 9 is_stmt 0 view .LVU30
+ 102 0012 1092 C500 		sts 197,__zero_reg__
+ 103               	.LBE25:
+ 104               	.LBE24:
+ 337:usb.c         **** 	_delay_ms(5000);
+ 105               		.loc 1 337 2 is_stmt 1 view .LVU31
+ 106               	.LVL4:
+ 107               	.LBB26:
+ 108               	.LBI26:
+ 109               		.file 3 "/usr/avr/include/util/delay.h"
+   1:/usr/avr/include/util/delay.h **** /* Copyright (c) 2002, Marek Michalkiewicz
+   2:/usr/avr/include/util/delay.h ****    Copyright (c) 2004,2005,2007 Joerg Wunsch
+   3:/usr/avr/include/util/delay.h ****    Copyright (c) 2007  Florin-Viorel Petrov
+   4:/usr/avr/include/util/delay.h ****    All rights reserved.
+   5:/usr/avr/include/util/delay.h **** 
+   6:/usr/avr/include/util/delay.h ****    Redistribution and use in source and binary forms, with or without
+   7:/usr/avr/include/util/delay.h ****    modification, are permitted provided that the following conditions are met:
+   8:/usr/avr/include/util/delay.h **** 
+   9:/usr/avr/include/util/delay.h ****    * Redistributions of source code must retain the above copyright
+  10:/usr/avr/include/util/delay.h ****      notice, this list of conditions and the following disclaimer.
+  11:/usr/avr/include/util/delay.h **** 
+  12:/usr/avr/include/util/delay.h ****    * Redistributions in binary form must reproduce the above copyright
+  13:/usr/avr/include/util/delay.h ****      notice, this list of conditions and the following disclaimer in
+  14:/usr/avr/include/util/delay.h ****      the documentation and/or other materials provided with the
+  15:/usr/avr/include/util/delay.h ****      distribution.
+  16:/usr/avr/include/util/delay.h **** 
+  17:/usr/avr/include/util/delay.h ****    * Neither the name of the copyright holders nor the names of
+  18:/usr/avr/include/util/delay.h ****      contributors may be used to endorse or promote products derived
+  19:/usr/avr/include/util/delay.h ****      from this software without specific prior written permission.
+  20:/usr/avr/include/util/delay.h **** 
+  21:/usr/avr/include/util/delay.h ****   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+  22:/usr/avr/include/util/delay.h ****   AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  23:/usr/avr/include/util/delay.h ****   IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  24:/usr/avr/include/util/delay.h ****   ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  25:/usr/avr/include/util/delay.h ****   LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  26:/usr/avr/include/util/delay.h ****   CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  27:/usr/avr/include/util/delay.h ****   SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  28:/usr/avr/include/util/delay.h ****   INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  29:/usr/avr/include/util/delay.h ****   CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+  30:/usr/avr/include/util/delay.h ****   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+  31:/usr/avr/include/util/delay.h ****   POSSIBILITY OF SUCH DAMAGE. */
+  32:/usr/avr/include/util/delay.h **** 
+  33:/usr/avr/include/util/delay.h **** /* $Id: delay.h.in 2506 2016-02-08 10:05:45Z joerg_wunsch $ */
+  34:/usr/avr/include/util/delay.h **** 
+  35:/usr/avr/include/util/delay.h **** #ifndef _UTIL_DELAY_H_
+  36:/usr/avr/include/util/delay.h **** #define _UTIL_DELAY_H_ 1
+  37:/usr/avr/include/util/delay.h **** 
+  38:/usr/avr/include/util/delay.h **** #ifndef __DOXYGEN__
+  39:/usr/avr/include/util/delay.h **** #  ifndef __HAS_DELAY_CYCLES
+  40:/usr/avr/include/util/delay.h **** #    define __HAS_DELAY_CYCLES 1
+  41:/usr/avr/include/util/delay.h **** #  endif
+  42:/usr/avr/include/util/delay.h **** #endif  /* __DOXYGEN__ */
+  43:/usr/avr/include/util/delay.h **** 
+  44:/usr/avr/include/util/delay.h **** #include <inttypes.h>
+  45:/usr/avr/include/util/delay.h **** #include <util/delay_basic.h>
+  46:/usr/avr/include/util/delay.h **** #include <math.h>
+  47:/usr/avr/include/util/delay.h **** 
+  48:/usr/avr/include/util/delay.h **** /** \file */
+  49:/usr/avr/include/util/delay.h **** /** \defgroup util_delay <util/delay.h>: Convenience functions for busy-wait delay loops
+  50:/usr/avr/include/util/delay.h ****     \code
+  51:/usr/avr/include/util/delay.h ****     #define F_CPU 1000000UL  // 1 MHz
+  52:/usr/avr/include/util/delay.h ****     //#define F_CPU 14.7456E6
+  53:/usr/avr/include/util/delay.h ****     #include <util/delay.h>
+  54:/usr/avr/include/util/delay.h ****     \endcode
+  55:/usr/avr/include/util/delay.h **** 
+  56:/usr/avr/include/util/delay.h ****     \note As an alternative method, it is possible to pass the
+  57:/usr/avr/include/util/delay.h ****     F_CPU macro down to the compiler from the Makefile.
+  58:/usr/avr/include/util/delay.h ****     Obviously, in that case, no \c \#define statement should be
+  59:/usr/avr/include/util/delay.h ****     used.
+  60:/usr/avr/include/util/delay.h **** 
+  61:/usr/avr/include/util/delay.h ****     The functions in this header file are wrappers around the basic
+  62:/usr/avr/include/util/delay.h ****     busy-wait functions from <util/delay_basic.h>.  They are meant as
+  63:/usr/avr/include/util/delay.h ****     convenience functions where actual time values can be specified
+  64:/usr/avr/include/util/delay.h ****     rather than a number of cycles to wait for.  The idea behind is
+  65:/usr/avr/include/util/delay.h ****     that compile-time constant expressions will be eliminated by
+  66:/usr/avr/include/util/delay.h ****     compiler optimization so floating-point expressions can be used
+  67:/usr/avr/include/util/delay.h ****     to calculate the number of delay cycles needed based on the CPU
+  68:/usr/avr/include/util/delay.h ****     frequency passed by the macro F_CPU.
+  69:/usr/avr/include/util/delay.h **** 
+  70:/usr/avr/include/util/delay.h ****     \note In order for these functions to work as intended, compiler
+  71:/usr/avr/include/util/delay.h ****     optimizations <em>must</em> be enabled, and the delay time
+  72:/usr/avr/include/util/delay.h ****     <em>must</em> be an expression that is a known constant at
+  73:/usr/avr/include/util/delay.h ****     compile-time.  If these requirements are not met, the resulting
+  74:/usr/avr/include/util/delay.h ****     delay will be much longer (and basically unpredictable), and
+  75:/usr/avr/include/util/delay.h ****     applications that otherwise do not use floating-point calculations
+  76:/usr/avr/include/util/delay.h ****     will experience severe code bloat by the floating-point library
+  77:/usr/avr/include/util/delay.h ****     routines linked into the application.
+  78:/usr/avr/include/util/delay.h **** 
+  79:/usr/avr/include/util/delay.h ****     The functions available allow the specification of microsecond, and
+  80:/usr/avr/include/util/delay.h ****     millisecond delays directly, using the application-supplied macro
+  81:/usr/avr/include/util/delay.h ****     F_CPU as the CPU clock frequency (in Hertz).
+  82:/usr/avr/include/util/delay.h **** 
+  83:/usr/avr/include/util/delay.h **** */
+  84:/usr/avr/include/util/delay.h **** 
+  85:/usr/avr/include/util/delay.h **** #if !defined(__DOXYGEN__)
+  86:/usr/avr/include/util/delay.h **** static __inline__ void _delay_us(double __us) __attribute__((__always_inline__));
+  87:/usr/avr/include/util/delay.h **** static __inline__ void _delay_ms(double __ms) __attribute__((__always_inline__));
+  88:/usr/avr/include/util/delay.h **** #endif
+  89:/usr/avr/include/util/delay.h **** 
+  90:/usr/avr/include/util/delay.h **** #ifndef F_CPU
+  91:/usr/avr/include/util/delay.h **** /* prevent compiler error by supplying a default */
+  92:/usr/avr/include/util/delay.h **** # warning "F_CPU not defined for <util/delay.h>"
+  93:/usr/avr/include/util/delay.h **** /** \ingroup util_delay
+  94:/usr/avr/include/util/delay.h ****     \def F_CPU
+  95:/usr/avr/include/util/delay.h ****     \brief CPU frequency in Hz
+  96:/usr/avr/include/util/delay.h **** 
+  97:/usr/avr/include/util/delay.h ****     The macro F_CPU specifies the CPU frequency to be considered by
+  98:/usr/avr/include/util/delay.h ****     the delay macros.  This macro is normally supplied by the
+  99:/usr/avr/include/util/delay.h ****     environment (e.g. from within a project header, or the project's
+ 100:/usr/avr/include/util/delay.h ****     Makefile).  The value 1 MHz here is only provided as a "vanilla"
+ 101:/usr/avr/include/util/delay.h ****     fallback if no such user-provided definition could be found.
+ 102:/usr/avr/include/util/delay.h **** 
+ 103:/usr/avr/include/util/delay.h ****     In terms of the delay functions, the CPU frequency can be given as
+ 104:/usr/avr/include/util/delay.h ****     a floating-point constant (e.g. 3.6864E6 for 3.6864 MHz).
+ 105:/usr/avr/include/util/delay.h ****     However, the macros in <util/setbaud.h> require it to be an
+ 106:/usr/avr/include/util/delay.h ****     integer value.
+ 107:/usr/avr/include/util/delay.h ****  */
+ 108:/usr/avr/include/util/delay.h **** # define F_CPU 1000000UL
+ 109:/usr/avr/include/util/delay.h **** #endif
+ 110:/usr/avr/include/util/delay.h **** 
+ 111:/usr/avr/include/util/delay.h **** #ifndef __OPTIMIZE__
+ 112:/usr/avr/include/util/delay.h **** # warning "Compiler optimizations disabled; functions from <util/delay.h> won't work as designed"
+ 113:/usr/avr/include/util/delay.h **** #endif
+ 114:/usr/avr/include/util/delay.h **** 
+ 115:/usr/avr/include/util/delay.h **** #if __HAS_DELAY_CYCLES && defined(__OPTIMIZE__) && \
+ 116:/usr/avr/include/util/delay.h ****   !defined(__DELAY_BACKWARD_COMPATIBLE__) &&	   \
+ 117:/usr/avr/include/util/delay.h ****   __STDC_HOSTED__
+ 118:/usr/avr/include/util/delay.h **** #  include <math.h>
+ 119:/usr/avr/include/util/delay.h **** #endif
+ 120:/usr/avr/include/util/delay.h **** 
+ 121:/usr/avr/include/util/delay.h **** /**
+ 122:/usr/avr/include/util/delay.h ****    \ingroup util_delay
+ 123:/usr/avr/include/util/delay.h **** 
+ 124:/usr/avr/include/util/delay.h ****    Perform a delay of \c __ms milliseconds, using _delay_loop_2().
+ 125:/usr/avr/include/util/delay.h **** 
+ 126:/usr/avr/include/util/delay.h ****    The macro F_CPU is supposed to be defined to a
+ 127:/usr/avr/include/util/delay.h ****    constant defining the CPU clock frequency (in Hertz).
+ 128:/usr/avr/include/util/delay.h **** 
+ 129:/usr/avr/include/util/delay.h ****    The maximal possible delay is 262.14 ms / F_CPU in MHz.
+ 130:/usr/avr/include/util/delay.h **** 
+ 131:/usr/avr/include/util/delay.h ****    When the user request delay which exceed the maximum possible one,
+ 132:/usr/avr/include/util/delay.h ****    _delay_ms() provides a decreased resolution functionality. In this
+ 133:/usr/avr/include/util/delay.h ****    mode _delay_ms() will work with a resolution of 1/10 ms, providing
+ 134:/usr/avr/include/util/delay.h ****    delays up to 6.5535 seconds (independent from CPU frequency).  The
+ 135:/usr/avr/include/util/delay.h ****    user will not be informed about decreased resolution.
+ 136:/usr/avr/include/util/delay.h **** 
+ 137:/usr/avr/include/util/delay.h ****    If the avr-gcc toolchain has __builtin_avr_delay_cycles()
+ 138:/usr/avr/include/util/delay.h ****    support, maximal possible delay is 4294967.295 ms/ F_CPU in MHz. For
+ 139:/usr/avr/include/util/delay.h ****    values greater than the maximal possible delay, overflows results in
+ 140:/usr/avr/include/util/delay.h ****    no delay i.e., 0ms.
+ 141:/usr/avr/include/util/delay.h **** 
+ 142:/usr/avr/include/util/delay.h ****    Conversion of \c __ms into clock cycles may not always result in
+ 143:/usr/avr/include/util/delay.h ****    integer.  By default, the clock cycles rounded up to next
+ 144:/usr/avr/include/util/delay.h ****    integer. This ensures that the user gets at least \c __ms
+ 145:/usr/avr/include/util/delay.h ****    microseconds of delay.
+ 146:/usr/avr/include/util/delay.h **** 
+ 147:/usr/avr/include/util/delay.h ****    Alternatively, by defining the macro \c __DELAY_ROUND_DOWN__, or
+ 148:/usr/avr/include/util/delay.h ****    \c __DELAY_ROUND_CLOSEST__, before including this header file, the
+ 149:/usr/avr/include/util/delay.h ****    algorithm can be made to round down, or round to closest integer,
+ 150:/usr/avr/include/util/delay.h ****    respectively.
+ 151:/usr/avr/include/util/delay.h **** 
+ 152:/usr/avr/include/util/delay.h ****    \note
+ 153:/usr/avr/include/util/delay.h **** 
+ 154:/usr/avr/include/util/delay.h ****    The implementation of _delay_ms() based on
+ 155:/usr/avr/include/util/delay.h ****    __builtin_avr_delay_cycles() is not backward compatible with older
+ 156:/usr/avr/include/util/delay.h ****    implementations.  In order to get functionality backward compatible
+ 157:/usr/avr/include/util/delay.h ****    with previous versions, the macro \c "__DELAY_BACKWARD_COMPATIBLE__"
+ 158:/usr/avr/include/util/delay.h ****    must be defined before including this header file. Also, the
+ 159:/usr/avr/include/util/delay.h ****    backward compatible algorithm will be chosen if the code is
+ 160:/usr/avr/include/util/delay.h ****    compiled in a <em>freestanding environment</em> (GCC option
+ 161:/usr/avr/include/util/delay.h ****    \c -ffreestanding), as the math functions required for rounding are
+ 162:/usr/avr/include/util/delay.h ****    not available to the compiler then.
+ 163:/usr/avr/include/util/delay.h **** 
+ 164:/usr/avr/include/util/delay.h ****  */
+ 165:/usr/avr/include/util/delay.h **** void
+ 166:/usr/avr/include/util/delay.h **** _delay_ms(double __ms)
+ 110               		.loc 3 166 1 view .LVU32
+ 111               	.LBB27:
+ 167:/usr/avr/include/util/delay.h **** {
+ 168:/usr/avr/include/util/delay.h **** 	double __tmp ;
+ 112               		.loc 3 168 2 view .LVU33
+ 169:/usr/avr/include/util/delay.h **** #if __HAS_DELAY_CYCLES && defined(__OPTIMIZE__) && \
+ 170:/usr/avr/include/util/delay.h ****   !defined(__DELAY_BACKWARD_COMPATIBLE__) &&	   \
+ 171:/usr/avr/include/util/delay.h ****   __STDC_HOSTED__
+ 172:/usr/avr/include/util/delay.h **** 	uint32_t __ticks_dc;
+ 113               		.loc 3 172 2 view .LVU34
+ 173:/usr/avr/include/util/delay.h **** 	extern void __builtin_avr_delay_cycles(unsigned long);
+ 114               		.loc 3 173 2 view .LVU35
+ 174:/usr/avr/include/util/delay.h **** 	__tmp = ((F_CPU) / 1e3) * __ms;
+ 115               		.loc 3 174 2 view .LVU36
+ 175:/usr/avr/include/util/delay.h **** 
+ 176:/usr/avr/include/util/delay.h **** 	#if defined(__DELAY_ROUND_DOWN__)
+ 177:/usr/avr/include/util/delay.h **** 		__ticks_dc = (uint32_t)fabs(__tmp);
+ 178:/usr/avr/include/util/delay.h **** 
+ 179:/usr/avr/include/util/delay.h **** 	#elif defined(__DELAY_ROUND_CLOSEST__)
+ 180:/usr/avr/include/util/delay.h **** 		__ticks_dc = (uint32_t)(fabs(__tmp)+0.5);
+ 181:/usr/avr/include/util/delay.h **** 
+ 182:/usr/avr/include/util/delay.h **** 	#else
+ 183:/usr/avr/include/util/delay.h **** 		//round up by default
+ 184:/usr/avr/include/util/delay.h **** 		__ticks_dc = (uint32_t)(ceil(fabs(__tmp)));
+ 116               		.loc 3 184 3 view .LVU37
+ 185:/usr/avr/include/util/delay.h **** 	#endif
+ 186:/usr/avr/include/util/delay.h **** 
+ 187:/usr/avr/include/util/delay.h **** 	__builtin_avr_delay_cycles(__ticks_dc);
+ 117               		.loc 3 187 2 view .LVU38
+ 118 0016 2FEF      		ldi r18,lo8(15999999)
+ 119 0018 83E2      		ldi r24,hi8(15999999)
+ 120 001a 94EF      		ldi r25,hlo8(15999999)
+ 121 001c 2150      	1:	subi r18,1
+ 122 001e 8040      		sbci r24,0
+ 123 0020 9040      		sbci r25,0
+ 124 0022 01F4      		brne 1b
+ 125 0024 00C0      		rjmp .
+ 126 0026 0000      		nop
+ 127               	.LVL5:
+ 128               		.loc 3 187 2 is_stmt 0 view .LVU39
+ 129 0028 C0E0      		ldi r28,lo8(hw.1)
+ 130 002a D0E0      		ldi r29,hi8(hw.1)
+ 131               	.LBE27:
+ 132               	.LBE26:
+ 133               	.LBE23:
+ 134               	.LBE22:
+ 135               	.LBB28:
+ 136               	.LBB29:
+ 137               	.LBB30:
+ 138               	.LBB31:
+ 338:usb.c         **** }
+ 339:usb.c         **** 
+ 340:usb.c         **** static void usb_char(char c)
+ 341:usb.c         **** {
+ 342:usb.c         **** 	static uint8_t buf[8];
+ 343:usb.c         **** 
+ 344:usb.c         **** 	if(c == '\n')
+ 345:usb.c         **** 	{
+ 346:usb.c         **** 		buf[0] = 0;
+ 347:usb.c         **** 		buf[2] = KEY_ENTER;
+ 348:usb.c         **** 	}
+ 349:usb.c         **** 	else if(c == '\t')
+ 350:usb.c         **** 	{
+ 351:usb.c         **** 		buf[0] = 0;
+ 352:usb.c         **** 		buf[2] = KEY_TAB;
+ 139               		.loc 1 352 10 view .LVU40
+ 140 002c 1BE2      		ldi r17,lo8(43)
+ 347:usb.c         **** 	}
+ 141               		.loc 1 347 10 view .LVU41
+ 142 002e 08E2      		ldi r16,lo8(40)
+ 143               	.L8:
+ 144               	.LVL6:
+ 347:usb.c         **** 	}
+ 145               		.loc 1 347 10 view .LVU42
+ 146               	.LBE31:
+ 147               	.LBE30:
+ 353:usb.c         **** 	}
+ 354:usb.c         **** 	else
+ 355:usb.c         **** 	{
+ 356:usb.c         **** 		buf[0] = pgm_read_byte(layout_de + (c - 32) * 2);
+ 357:usb.c         **** 		buf[2] = pgm_read_byte(layout_de + (c - 32) * 2 + 1);
+ 358:usb.c         **** 	}
+ 359:usb.c         **** 
+ 360:usb.c         **** 	uart_tx_buf(buf, 8);
+ 361:usb.c         **** 	buf[0] = 0;
+ 362:usb.c         **** 	buf[2] = 0;
+ 363:usb.c         **** 	uart_tx_buf(buf, 8);
+ 364:usb.c         **** }
+ 365:usb.c         **** 
+ 366:usb.c         **** static void usb_string(const char *s)
+ 367:usb.c         **** {
+ 368:usb.c         **** 	char c;
+ 369:usb.c         **** 	while((c = *s++))
+ 370:usb.c         **** 	{
+ 371:usb.c         **** 		usb_char(c);
+ 372:usb.c         **** 	}
+ 373:usb.c         **** }
+ 374:usb.c         **** 
+ 375:usb.c         **** static void usb_string_P(const char *s)
+ 376:usb.c         **** {
+ 377:usb.c         **** 	char c;
+ 378:usb.c         **** 	while((c = pgm_read_byte(s++)))
+ 148               		.loc 1 378 7 is_stmt 1 view .LVU43
+ 149               	.LBB35:
+ 150               		.loc 1 378 13 view .LVU44
+ 151               		.loc 1 378 13 view .LVU45
+ 152               		.loc 1 378 13 view .LVU46
+ 153 0030 FE01      		movw r30,r28
+ 154               	/* #APP */
+ 155               	 ;  378 "usb.c" 1
+ 156 0032 8491      		lpm r24, Z
+ 157               		
+ 158               	 ;  0 "" 2
+ 159               	.LVL7:
+ 160               		.loc 1 378 13 view .LVU47
+ 161               		.loc 1 378 13 is_stmt 0 view .LVU48
+ 162               	/* #NOAPP */
+ 163               	.LBE35:
+ 164               		.loc 1 378 7 view .LVU49
+ 165 0034 8111      		cpse r24,__zero_reg__
+ 166 0036 00C0      		rjmp .L12
+ 167               	.LVL8:
+ 168               	.L13:
+ 169               		.loc 1 378 7 view .LVU50
+ 170               	.LBE29:
+ 171               	.LBE28:
+   8:main.c        **** 	usb_string_P(hw);
+   9:main.c        **** 	for(;;)
+ 172               		.loc 2 9 2 is_stmt 1 discriminator 1 view .LVU51
+  10:main.c        **** 	{
+  11:main.c        **** 	}
+ 173               		.loc 2 11 2 discriminator 1 view .LVU52
+   9:main.c        **** 	{
+ 174               		.loc 2 9 7 discriminator 1 view .LVU53
+ 175 0038 00C0      		rjmp .L13
+ 176               	.LVL9:
+ 177               	.L12:
+ 178               	.LBB38:
+ 179               	.LBB37:
+ 379:usb.c         **** 	{
+ 380:usb.c         **** 		usb_char(c);
+ 180               		.loc 1 380 3 view .LVU54
+ 181               	.LBB36:
+ 182               	.LBI30:
+ 340:usb.c         **** {
+ 183               		.loc 1 340 13 view .LVU55
+ 184               	.LBB34:
+ 342:usb.c         **** 
+ 185               		.loc 1 342 2 view .LVU56
+ 344:usb.c         **** 	{
+ 186               		.loc 1 344 2 view .LVU57
+ 344:usb.c         **** 	{
+ 187               		.loc 1 344 4 is_stmt 0 view .LVU58
+ 188 003a 8A30      		cpi r24,lo8(10)
+ 189 003c 01F4      		brne .L9
+ 346:usb.c         **** 		buf[2] = KEY_ENTER;
+ 190               		.loc 1 346 3 is_stmt 1 view .LVU59
+ 346:usb.c         **** 		buf[2] = KEY_ENTER;
+ 191               		.loc 1 346 10 is_stmt 0 view .LVU60
+ 192 003e 1092 0000 		sts buf.0,__zero_reg__
+ 347:usb.c         **** 	}
+ 193               		.loc 1 347 3 is_stmt 1 view .LVU61
+ 347:usb.c         **** 	}
+ 194               		.loc 1 347 10 is_stmt 0 view .LVU62
+ 195 0042 0093 0000 		sts buf.0+2,r16
+ 196               	.LVL10:
+ 197               	.L10:
+ 360:usb.c         **** 	buf[0] = 0;
+ 198               		.loc 1 360 2 is_stmt 1 view .LVU63
+ 199 0046 0E94 0000 		call uart_tx_buf.constprop.0
+ 200               	.LVL11:
+ 361:usb.c         **** 	buf[2] = 0;
+ 201               		.loc 1 361 2 view .LVU64
+ 361:usb.c         **** 	buf[2] = 0;
+ 202               		.loc 1 361 9 is_stmt 0 view .LVU65
+ 203 004a 1092 0000 		sts buf.0,__zero_reg__
+ 362:usb.c         **** 	uart_tx_buf(buf, 8);
+ 204               		.loc 1 362 2 is_stmt 1 view .LVU66
+ 362:usb.c         **** 	uart_tx_buf(buf, 8);
+ 205               		.loc 1 362 9 is_stmt 0 view .LVU67
+ 206 004e 1092 0000 		sts buf.0+2,__zero_reg__
+ 363:usb.c         **** }
+ 207               		.loc 1 363 2 is_stmt 1 view .LVU68
+ 208 0052 0E94 0000 		call uart_tx_buf.constprop.0
+ 209               	.LVL12:
+ 210 0056 2196      		adiw r28,1
+ 211               	.LVL13:
+ 364:usb.c         **** 
+ 212               		.loc 1 364 1 is_stmt 0 view .LVU69
+ 213 0058 00C0      		rjmp .L8
+ 214               	.LVL14:
+ 215               	.L9:
+ 349:usb.c         **** 	{
+ 216               		.loc 1 349 7 is_stmt 1 view .LVU70
+ 349:usb.c         **** 	{
+ 217               		.loc 1 349 9 is_stmt 0 view .LVU71
+ 218 005a 8930      		cpi r24,lo8(9)
+ 219 005c 01F4      		brne .L11
+ 351:usb.c         **** 		buf[2] = KEY_TAB;
+ 220               		.loc 1 351 3 is_stmt 1 view .LVU72
+ 351:usb.c         **** 		buf[2] = KEY_TAB;
+ 221               		.loc 1 351 10 is_stmt 0 view .LVU73
+ 222 005e 1092 0000 		sts buf.0,__zero_reg__
+ 352:usb.c         **** 	}
+ 223               		.loc 1 352 3 is_stmt 1 view .LVU74
+ 352:usb.c         **** 	}
+ 224               		.loc 1 352 10 is_stmt 0 view .LVU75
+ 225 0062 1093 0000 		sts buf.0+2,r17
+ 226 0066 00C0      		rjmp .L10
+ 227               	.L11:
+ 356:usb.c         **** 		buf[2] = pgm_read_byte(layout_de + (c - 32) * 2 + 1);
+ 228               		.loc 1 356 3 is_stmt 1 view .LVU76
+ 229               	.LBB32:
+ 356:usb.c         **** 		buf[2] = pgm_read_byte(layout_de + (c - 32) * 2 + 1);
+ 230               		.loc 1 356 12 view .LVU77
+ 231 0068 8052      		subi r24,32
+ 232 006a 990B      		sbc r25,r25
+ 233               	.LVL15:
+ 356:usb.c         **** 		buf[2] = pgm_read_byte(layout_de + (c - 32) * 2 + 1);
+ 234               		.loc 1 356 12 is_stmt 0 view .LVU78
+ 235 006c 880F      		lsl r24
+ 236 006e 991F      		rol r25
+ 237               	.LVL16:
+ 356:usb.c         **** 		buf[2] = pgm_read_byte(layout_de + (c - 32) * 2 + 1);
+ 238               		.loc 1 356 12 is_stmt 1 view .LVU79
+ 356:usb.c         **** 		buf[2] = pgm_read_byte(layout_de + (c - 32) * 2 + 1);
+ 239               		.loc 1 356 12 view .LVU80
+ 240 0070 FC01      		movw r30,r24
+ 241 0072 E050      		subi r30,lo8(-(layout_de))
+ 242 0074 F040      		sbci r31,hi8(-(layout_de))
+ 243               	.LVL17:
+ 356:usb.c         **** 		buf[2] = pgm_read_byte(layout_de + (c - 32) * 2 + 1);
+ 244               		.loc 1 356 12 is_stmt 0 view .LVU81
+ 245               	/* #APP */
+ 246               	 ;  356 "usb.c" 1
+ 247 0076 E491      		lpm r30, Z
+ 248               		
+ 249               	 ;  0 "" 2
+ 250               	.LVL18:
+ 356:usb.c         **** 		buf[2] = pgm_read_byte(layout_de + (c - 32) * 2 + 1);
+ 251               		.loc 1 356 12 is_stmt 1 view .LVU82
+ 252               	/* #NOAPP */
+ 253               	.LBE32:
+ 356:usb.c         **** 		buf[2] = pgm_read_byte(layout_de + (c - 32) * 2 + 1);
+ 254               		.loc 1 356 10 is_stmt 0 view .LVU83
+ 255 0078 E093 0000 		sts buf.0,r30
+ 357:usb.c         **** 	}
+ 256               		.loc 1 357 3 is_stmt 1 view .LVU84
+ 257               	.LBB33:
+ 357:usb.c         **** 	}
+ 258               		.loc 1 357 12 view .LVU85
+ 259               	.LVL19:
+ 357:usb.c         **** 	}
+ 260               		.loc 1 357 12 view .LVU86
+ 357:usb.c         **** 	}
+ 261               		.loc 1 357 12 view .LVU87
+ 262 007c FC01      		movw r30,r24
+ 263               	.LVL20:
+ 357:usb.c         **** 	}
+ 264               		.loc 1 357 12 is_stmt 0 view .LVU88
+ 265 007e E050      		subi r30,lo8(-(layout_de+1))
+ 266 0080 F040      		sbci r31,hi8(-(layout_de+1))
+ 267               	.LVL21:
+ 357:usb.c         **** 	}
+ 268               		.loc 1 357 12 view .LVU89
+ 269               	/* #APP */
+ 270               	 ;  357 "usb.c" 1
+ 271 0082 E491      		lpm r30, Z
+ 272               		
+ 273               	 ;  0 "" 2
+ 274               	.LVL22:
+ 357:usb.c         **** 	}
+ 275               		.loc 1 357 12 is_stmt 1 view .LVU90
+ 276               	/* #NOAPP */
+ 277               	.LBE33:
+ 357:usb.c         **** 	}
+ 278               		.loc 1 357 10 is_stmt 0 view .LVU91
+ 279 0084 E093 0000 		sts buf.0+2,r30
+ 280 0088 00C0      		rjmp .L10
+ 281               	.LBE34:
+ 282               	.LBE36:
+ 283               	.LBE37:
+ 284               	.LBE38:
+ 285               		.cfi_endproc
+ 286               	.LFE15:
+ 288               		.local	buf.0
+ 289               		.comm	buf.0,8,1
+ 290               		.section	.progmem.data,"a",@progbits
+ 293               	hw.1:
+ 294 0000 4865 6C6C 		.string	"Hello World!\n"
+ 294      6F20 576F 
+ 294      726C 6421 
+ 294      0A00 
+ 297               	layout_de:
+ 298 000e 00        		.string	""
+ 299 000f 2C02 1E02 		.string	",\002\036\002\037"
+ 299      1F00 
+ 300 0015 3102 2102 		.string	"1\002!\002\"\002#\0021\002%\002&\0020"
+ 300      2202 2302 
+ 300      3102 2502 
+ 300      2602 3000 
+ 301 0025 3000      		.string	"0"
+ 302 0027 3600      		.string	"6"
+ 303 0029 3800      		.string	"8"
+ 304 002b 3702 2400 		.string	"7\002$"
+ 305 002f 2700      		.string	"'"
+ 306 0031 1E00      		.string	"\036"
+ 307 0033 1F00      		.string	"\037"
+ 308 0035 2000      		.string	" "
+ 309 0037 2100      		.string	"!"
+ 310 0039 2200      		.string	"\""
+ 311 003b 2300      		.string	"#"
+ 312 003d 2400      		.string	"$"
+ 313 003f 2500      		.string	"%"
+ 314 0041 2602 3702 		.string	"&\0027\0026\0026"
+ 314      3602 3600 
+ 315 0049 2E02 3702 		.string	".\0027\0028@\024\002\004\002\005\002\006\002\007\002\b\002\t\002\n\002\013\002\f\002\r\00
+ 315      3840 1402 
+ 315      0402 0502 
+ 315      0602 0702 
+ 315      0802 0902 
+ 316 0087 3140 2602 		.string	"1@&\002#\002-"
+ 316      2302 2D00 
+ 317 008f 3500      		.string	"5"
+ 318 0091 0400      		.string	"\004"
+ 319 0093 0500      		.string	"\005"
+ 320 0095 0600      		.string	"\006"
+ 321 0097 0700      		.string	"\007"
+ 322 0099 0800      		.string	"\b"
+ 323 009b 0900      		.string	"\t"
+ 324 009d 0A00      		.string	"\n"
+ 325 009f 0B00      		.string	"\013"
+ 326 00a1 0C00      		.string	"\f"
+ 327 00a3 0D00      		.string	"\r"
+ 328 00a5 0E00      		.string	"\016"
+ 329 00a7 0F00      		.string	"\017"
+ 330 00a9 1000      		.string	"\020"
+ 331 00ab 1100      		.string	"\021"
+ 332 00ad 1200      		.string	"\022"
+ 333 00af 1300      		.string	"\023"
+ 334 00b1 1400      		.string	"\024"
+ 335 00b3 1500      		.string	"\025"
+ 336 00b5 1600      		.string	"\026"
+ 337 00b7 1700      		.string	"\027"
+ 338 00b9 1800      		.string	"\030"
+ 339 00bb 1900      		.string	"\031"
+ 340 00bd 1A00      		.string	"\032"
+ 341 00bf 1B00      		.string	"\033"
+ 342 00c1 1D00      		.string	"\035"
+ 343 00c3 1C40 2402 		.ascii	"\034@$\0021@'\0025"
+ 343      3140 2702 
+ 343      35
+ 344               		.text
+ 345               	.Letext0:
+ 346               		.file 4 "/usr/avr/include/stdint.h"
+DEFINED SYMBOLS
+                            *ABS*:0000000000000000 main.c
+     /tmp/ccMn5lX8.s:2      *ABS*:000000000000003e __SP_H__
+     /tmp/ccMn5lX8.s:3      *ABS*:000000000000003d __SP_L__
+     /tmp/ccMn5lX8.s:4      *ABS*:000000000000003f __SREG__
+     /tmp/ccMn5lX8.s:5      *ABS*:0000000000000000 __tmp_reg__
+     /tmp/ccMn5lX8.s:6      *ABS*:0000000000000001 __zero_reg__
+     /tmp/ccMn5lX8.s:11     .text:0000000000000000 uart_tx_buf.constprop.0
+                             .bss:0000000000000000 buf.0
+     /tmp/ccMn5lX8.s:68     .text.startup:0000000000000000 main
+     /tmp/ccMn5lX8.s:293    .progmem.data:0000000000000000 hw.1
+     /tmp/ccMn5lX8.s:297    .progmem.data:000000000000000e layout_de
+
+UNDEFINED SYMBOLS
+__do_clear_bss
